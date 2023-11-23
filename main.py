@@ -4,6 +4,7 @@ import asyncio
 from pyppeteer import launch
 import pyppeteer.network_manager
 import requests
+import json
 
 with open('credentials.txt', encoding='utf-8') as file:
     username = file.readline()
@@ -62,12 +63,20 @@ async def main():
         i += 1
 
     i = 0
-    while auth is None and i < 10:
+    while response is None and i < 10:
         await asyncio.sleep(.5)
-        print('waiting for account', i)
+        print('waiting for auth', i)
+        i += 1
     j = await response.json()
 
     # await page.screenshot(path='example.png')
+    await page.close()
+
+    # page = await browser.newPage()
+    # await page.setViewport({'width': 500, 'height': 500})
+    # await page.setContent('<p>Bring your laptop to class.&nbsp;</p><p><br></p><p>This test will be taken on&nbsp;<a href=\\"http://exam.net/\\" target=\\"_blank\\">Exam.net</a>.&nbsp;</p>')
+    # await page.screenshot(path='english.png')
+
     await browser.close()
 
     global persoon_id
@@ -86,8 +95,30 @@ if persoon_id is None:
     print('no persoon_id')
     exit(1)
 
-r = requests.get(f'https://novum.magister.net/api/personen/{persoon_id}/afspraken?status=1&tot=2023-11-10&van=2023-11-03',
-                 headers={'authorization': auth})
+# r = requests.get(f'https://novum.magister.net/api/personen/{persoon_id}/afspraken?status=1&tot=2023-11-10&van=2023-11-03',
+#                  headers={'authorization': auth})
 
-print(r.status_code)
-print(r.content)
+# print(r.status_code)
+# print(r.content)
+
+with open('payload.txt', 'r', encoding='utf-8') as file:
+    payload = file.read()
+
+for i, line in enumerate(payload.split('\n')):
+    data = ('{"Id":0,"Links":null,"Start":"2023-11-22T07:00:00.000Z","Einde":"2023-11-22T07:30:00.000Z","DuurtHeleDag":false,'
+            + f'"Omschrijving":"vanuit magapi2 {i} (attempt 5)","LesuurVan":null,"LesuurTotMet":null,"Type":1,"Inhoud":'
+            + f'{json.dumps(line)},'
+            + '"InfoType":6,"Afgerond":false,"Aantekening":null,"Vakken":null,"Docenten":null,"Lokatie":"006","Status":2,"Lokalen":null,"Groepen":null,"OpdrachtId":0,"HeeftBijlagen":false,"Bijlagen":null,"WeergaveType":1,"TaakAangemaaktOp":null,"TaakGewijzigdOp":null,"HerhaalStatus":0,"Herhaling":null,"IsOnlineDeelname":false,"Subtype":1}')
+
+    r = requests.post(
+        f'https://novum.magister.net/api/personen/{persoon_id}/afspraken',
+        data=data.encode('utf-8'),
+        headers={
+            'Content-type': 'application/json',
+            'authorization': auth
+        }, timeout=1000
+    )
+
+    print(r.status_code)
+    # if r.status_code != 201:
+    #     print(r.content)
